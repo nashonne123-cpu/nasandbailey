@@ -55,9 +55,6 @@ export default function App() {
   const [historyItems, setHistoryItems] = useState([]);
   const [notifications, setNotifications] = useState([]);
 
-  const [activeCommentItem, setActiveCommentItem] = useState(null);
-  const [commentText, setCommentText] = useState('');
-
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   
@@ -115,12 +112,18 @@ export default function App() {
 
     const scheduleRef = collection(db, 'artifacts', appId, 'public', 'data', SCHEDULE_COLLECTION);
     const unsubSchedule = onSnapshot(scheduleRef, (snapshot) => {
-      setScheduleItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      console.log("Fetched schedule items:", items);
+      setScheduleItems(items);
+    }, (error) => {
+      console.error("Schedule snapshot error:", error);
     });
 
     const goalsRef = collection(db, 'artifacts', appId, 'public', 'data', GOALS_COLLECTION);
     const unsubGoals = onSnapshot(goalsRef, (snapshot) => {
       setGoalsItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.error("Goals snapshot error:", error);
     });
 
     const historyRef = collection(db, 'artifacts', appId, 'public', 'data', HISTORY_COLLECTION);
@@ -206,99 +209,94 @@ export default function App() {
     );
   };
 
-  const handleToggleReaction = async (item, emoji, isGoal = false) => {
-    const collectionName = isGoal ? GOALS_COLLECTION : SCHEDULE_COLLECTION;
-    const itemRef = doc(db, 'artifacts', appId, 'public', 'data', collectionName, item.id);
-    const existingReactions = item.reactions || {};
-    const currentUsers = existingReactions[emoji] || [];
-
-    let updatedUsers = currentUsers.includes(currentUserProfile)
-      ? currentUsers.filter(u => u !== currentUserProfile)
-      : [...currentUsers, currentUserProfile];
-
-    await updateDoc(itemRef, { [`reactions.${emoji}`]: updatedUsers });
-  };
-
   const handleSaveTask = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!taskForm.title.trim()) return;
 
-    const taskData = {
-      user: taskForm.user,
-      day: taskForm.day,
-      title: taskForm.title.trim(),
-      startTime: taskForm.startTime,
-      endTime: taskForm.endTime,
-      urgency: taskForm.urgency,
-      reminder: taskForm.reminder,
-      energy: Number(taskForm.energy),
-      status: taskForm.status,
-      notes: taskForm.notes || '',
-      updatedAt: new Date().toISOString()
-    };
+    try {
+      const taskData = {
+        user: taskForm.user,
+        day: taskForm.day,
+        title: taskForm.title.trim(),
+        startTime: taskForm.startTime,
+        endTime: taskForm.endTime,
+        urgency: taskForm.urgency,
+        reminder: taskForm.reminder,
+        energy: Number(taskForm.energy),
+        status: taskForm.status,
+        notes: taskForm.notes || '',
+        updatedAt: new Date().toISOString()
+      };
 
-    if (taskForm.id) {
-      const docRef = doc(db, 'artifacts', appId, 'public', 'data', SCHEDULE_COLLECTION, taskForm.id);
-      await updateDoc(docRef, taskData);
-    } else {
-      const colRef = collection(db, 'artifacts', appId, 'public', 'data', SCHEDULE_COLLECTION);
-      await addDoc(colRef, { ...taskData, reactions: {}, comments: [], createdAt: new Date().toISOString() });
+      if (taskForm.id) {
+        const docRef = doc(db, 'artifacts', appId, 'public', 'data', SCHEDULE_COLLECTION, taskForm.id);
+        await updateDoc(docRef, taskData);
+      } else {
+        const colRef = collection(db, 'artifacts', appId, 'public', 'data', SCHEDULE_COLLECTION);
+        await addDoc(colRef, { ...taskData, reactions: {}, comments: [], createdAt: new Date().toISOString() });
+      }
+
+      setIsTaskModalOpen(false);
+      setTaskForm({
+        id: null,
+        user: currentUserProfile,
+        day: 'Monday',
+        title: '',
+        startTime: '09:00',
+        endTime: '10:00',
+        urgency: 'Medium',
+        reminder: '30 mins before',
+        energy: 50,
+        status: 'In Progress',
+        notes: ''
+      });
+    } catch (err) {
+      console.error("Error saving task:", err);
     }
-
-    setIsTaskModalOpen(false);
-    setTaskForm({
-      id: null,
-      user: currentUserProfile,
-      day: 'Monday',
-      title: '',
-      startTime: '09:00',
-      endTime: '10:00',
-      urgency: 'Medium',
-      reminder: '30 mins before',
-      energy: 50,
-      status: 'In Progress',
-      notes: ''
-    });
   };
 
   const handleSaveGoal = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!goalForm.title.trim()) return;
 
-    const goalData = {
-      user: goalForm.user,
-      title: goalForm.title.trim(),
-      type: goalForm.type,
-      priority: goalForm.priority,
-      progress: Number(goalForm.progress),
-      expectedDate: goalForm.expectedDate || '',
-      reminder: goalForm.reminder,
-      notes: goalForm.notes || '',
-      status: Number(goalForm.progress) === 100 ? 'Completed' : 'Active',
-      updatedAt: new Date().toISOString()
-    };
+    try {
+      const goalData = {
+        user: goalForm.user,
+        title: goalForm.title.trim(),
+        type: goalForm.type,
+        priority: goalForm.priority,
+        progress: Number(goalForm.progress),
+        expectedDate: goalForm.expectedDate || '',
+        reminder: goalForm.reminder,
+        notes: goalForm.notes || '',
+        status: Number(goalForm.progress) === 100 ? 'Completed' : 'Active',
+        updatedAt: new Date().toISOString()
+      };
 
-    if (goalForm.id) {
-      const docRef = doc(db, 'artifacts', appId, 'public', 'data', GOALS_COLLECTION, goalForm.id);
-      await updateDoc(docRef, goalData);
-    } else {
-      const colRef = collection(db, 'artifacts', appId, 'public', 'data', GOALS_COLLECTION);
-      await addDoc(colRef, { ...goalData, reactions: {}, comments: [], createdAt: new Date().toISOString() });
+      if (goalForm.id) {
+        const docRef = doc(db, 'artifacts', appId, 'public', 'data', GOALS_COLLECTION, goalForm.id);
+        await updateDoc(docRef, goalData);
+      } else {
+        const colRef = collection(db, 'artifacts', appId, 'public', 'data', GOALS_COLLECTION);
+        await addDoc(colRef, { ...goalData, reactions: {}, comments: [], createdAt: new Date().toISOString() });
+      }
+
+      setIsGoalModalOpen(false);
+      setGoalForm({
+        id: null,
+        user: currentUserProfile,
+        title: '',
+        type: 'Short-Term',
+        priority: 'Medium',
+        progress: 0,
+        expectedDate: '',
+        reminder: '1 day before',
+        notes: '',
+        status: 'Active'
+      });
+    } catch (err) {
+      console.error("Error saving goal:", err);
     }
-
-    setIsGoalModalOpen(false);
-    setGoalForm({
-      id: null,
-      user: currentUserProfile,
-      title: '',
-      type: 'Short-Term',
-      priority: 'Medium',
-      progress: 0,
-      expectedDate: '',
-      reminder: '1 day before',
-      notes: '',
-      status: 'Active'
-    });
   };
 
   const isNas = currentUserProfile === 'Nas';
@@ -400,7 +398,11 @@ export default function App() {
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">Weekly Schedule</h2>
               <button
-                onClick={() => setIsTaskModalOpen(true)}
+                type="button"
+                onClick={() => {
+                  setTaskForm(prev => ({ ...prev, user: currentUserProfile, id: null, title: '' }));
+                  setIsTaskModalOpen(true);
+                }}
                 className={`px-4 py-2 rounded-xl text-xs font-bold text-white ${isNas ? 'bg-indigo-600' : 'bg-rose-500'}`}
               >
                 + Add Task
@@ -421,7 +423,7 @@ export default function App() {
                               {task.user}
                             </span>
                             <div className="flex gap-2">
-                              <button onClick={() => handleNudgePartner(task)} className="text-amber-400 text-xs" title="Nudge Partner">👋</button>
+                              <button type="button" onClick={() => handleNudgePartner(task)} className="text-amber-400 text-xs" title="Nudge Partner">👋</button>
                               <a href={generateGoogleCalendarUrl(task)} target="_blank" rel="noopener noreferrer" className="text-emerald-400 text-xs" title="Add to Calendar">📅</a>
                             </div>
                           </div>
@@ -445,7 +447,11 @@ export default function App() {
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">Goals Tracker</h2>
               <button
-                onClick={() => setIsGoalModalOpen(true)}
+                type="button"
+                onClick={() => {
+                  setGoalForm(prev => ({ ...prev, user: currentUserProfile, id: null, title: '' }));
+                  setIsGoalModalOpen(true);
+                }}
                 className={`px-4 py-2 rounded-xl text-xs font-bold text-white ${isNas ? 'bg-indigo-600' : 'bg-rose-500'}`}
               >
                 + Add Goal
