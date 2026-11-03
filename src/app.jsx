@@ -68,8 +68,9 @@ export default function App() {
     title: '',
     startTime: '09:00',
     endTime: '10:00',
+    urgency: 'Medium',
     reminder: '30 mins before',
-    energy: 10,
+    energy: 50,
     status: 'In Progress',
     notes: ''
   });
@@ -228,6 +229,7 @@ export default function App() {
       title: taskForm.title.trim(),
       startTime: taskForm.startTime,
       endTime: taskForm.endTime,
+      urgency: taskForm.urgency,
       reminder: taskForm.reminder,
       energy: Number(taskForm.energy),
       status: taskForm.status,
@@ -244,6 +246,19 @@ export default function App() {
     }
 
     setIsTaskModalOpen(false);
+    setTaskForm({
+      id: null,
+      user: currentUserProfile,
+      day: 'Monday',
+      title: '',
+      startTime: '09:00',
+      endTime: '10:00',
+      urgency: 'Medium',
+      reminder: '30 mins before',
+      energy: 50,
+      status: 'In Progress',
+      notes: ''
+    });
   };
 
   const handleSaveGoal = async (e) => {
@@ -272,6 +287,18 @@ export default function App() {
     }
 
     setIsGoalModalOpen(false);
+    setGoalForm({
+      id: null,
+      user: currentUserProfile,
+      title: '',
+      type: 'Short-Term',
+      priority: 'Medium',
+      progress: 0,
+      expectedDate: '',
+      reminder: '1 day before',
+      notes: '',
+      status: 'Active'
+    });
   };
 
   const isNas = currentUserProfile === 'Nas';
@@ -394,12 +421,15 @@ export default function App() {
                               {task.user}
                             </span>
                             <div className="flex gap-2">
-                              <button onClick={() => handleNudgePartner(task)} className="text-amber-400 text-xs">👋</button>
-                              <a href={generateGoogleCalendarUrl(task)} target="_blank" rel="noopener noreferrer" className="text-emerald-400 text-xs">📅</a>
+                              <button onClick={() => handleNudgePartner(task)} className="text-amber-400 text-xs" title="Nudge Partner">👋</button>
+                              <a href={generateGoogleCalendarUrl(task)} target="_blank" rel="noopener noreferrer" className="text-emerald-400 text-xs" title="Add to Calendar">📅</a>
                             </div>
                           </div>
                           <h4 className="text-xs font-bold text-slate-200">{task.title}</h4>
-                          <div className="text-[10px] text-slate-400">🕒 {task.startTime} - {task.endTime}</div>
+                          <div className="text-[10px] text-slate-400">🕒 {task.startTime} - {task.endTime} | Urgency: {task.urgency}</div>
+                          {task.energy !== undefined && (
+                            <div className="text-[10px] text-purple-400">⚡ Energy Points: {task.energy}</div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -430,9 +460,15 @@ export default function App() {
                     <div key={goal.id} className="p-4 rounded-2xl border border-slate-800 bg-slate-900/60 space-y-2">
                       <div className="flex justify-between">
                         <h4 className="text-sm font-bold">{goal.title}</h4>
-                        <a href={generateGoogleCalendarUrl(goal, true)} target="_blank" rel="noopener noreferrer" className="text-emerald-400 text-xs">📅</a>
+                        <a href={generateGoogleCalendarUrl(goal, true)} target="_blank" rel="noopener noreferrer" className="text-emerald-400 text-xs" title="Add to Calendar">📅</a>
                       </div>
-                      <div className="text-xs text-emerald-400 font-bold">{goal.progress}%</div>
+                      <div className="flex justify-between text-xs text-slate-400">
+                        <span>{goal.type} ({goal.priority} Priority)</span>
+                        <span className="text-emerald-400 font-bold">{goal.progress}%</span>
+                      </div>
+                      {goal.expectedDate && (
+                        <div className="text-[10px] text-indigo-300">Target Date: {goal.expectedDate}</div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -445,17 +481,93 @@ export default function App() {
       {/* MODAL: TASK */}
       {isTaskModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80">
-          <div className={`w-full max-w-md p-6 rounded-3xl border ${cardBg} space-y-4`}>
-            <h3 className="text-lg font-bold">Add Task</h3>
+          <div className={`w-full max-w-md p-6 rounded-3xl border ${cardBg} space-y-4 max-h-[90vh] overflow-y-auto`}>
+            <h3 className="text-lg font-bold">Add / Edit Task</h3>
             <form onSubmit={handleSaveTask} className="space-y-3 text-xs">
-              <input
-                type="text"
-                required
-                placeholder="Task Title"
-                value={taskForm.title}
-                onChange={e => setTaskForm({ ...taskForm, title: e.target.value })}
-                className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-100"
-              />
+              <div>
+                <label className="block text-slate-400 mb-1">Task Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Task Title"
+                  value={taskForm.title}
+                  onChange={e => setTaskForm({ ...taskForm, title: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-100"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-400 mb-1">Day of the Week</label>
+                  <select
+                    value={taskForm.day}
+                    onChange={e => setTaskForm({ ...taskForm, day: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-100"
+                  >
+                    {DAYS_OF_WEEK.map(d => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1">Urgency</label>
+                  <select
+                    value={taskForm.urgency}
+                    onChange={e => setTaskForm({ ...taskForm, urgency: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-100"
+                  >
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Urgent">Urgent</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-400 mb-1">Start Time</label>
+                  <input
+                    type="time"
+                    value={taskForm.startTime}
+                    onChange={e => setTaskForm({ ...taskForm, startTime: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1">End Time</label>
+                  <input
+                    type="time"
+                    value={taskForm.endTime}
+                    onChange={e => setTaskForm({ ...taskForm, endTime: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-100"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1">Energy Points: {taskForm.energy}</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={taskForm.energy}
+                  onChange={e => setTaskForm({ ...taskForm, energy: e.target.value })}
+                  className="w-full accent-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1">Notes</label>
+                <textarea
+                  placeholder="Additional details..."
+                  value={taskForm.notes}
+                  onChange={e => setTaskForm({ ...taskForm, notes: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-100 h-20"
+                />
+              </div>
+
               <div className="flex justify-end gap-2 pt-3">
                 <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-4 py-2 text-slate-400">Cancel</button>
                 <button type="submit" className="px-5 py-2 font-bold text-white bg-indigo-600 rounded-xl">Save Task</button>
@@ -468,17 +580,80 @@ export default function App() {
       {/* MODAL: GOAL */}
       {isGoalModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80">
-          <div className={`w-full max-w-md p-6 rounded-3xl border ${cardBg} space-y-4`}>
-            <h3 className="text-lg font-bold">Add Goal</h3>
+          <div className={`w-full max-w-md p-6 rounded-3xl border ${cardBg} space-y-4 max-h-[90vh] overflow-y-auto`}>
+            <h3 className="text-lg font-bold">Add / Edit Goal</h3>
             <form onSubmit={handleSaveGoal} className="space-y-3 text-xs">
-              <input
-                type="text"
-                required
-                placeholder="Goal Title"
-                value={goalForm.title}
-                onChange={e => setGoalForm({ ...goalForm, title: e.target.value })}
-                className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-100"
-              />
+              <div>
+                <label className="block text-slate-400 mb-1">Goal Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Goal Title"
+                  value={goalForm.title}
+                  onChange={e => setGoalForm({ ...goalForm, title: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-100"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-400 mb-1">Goal Type</label>
+                  <select
+                    value={goalForm.type}
+                    onChange={e => setGoalForm({ ...goalForm, type: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-100"
+                  >
+                    <option value="Short-Term">Short-Term</option>
+                    <option value="Long-Term">Long-Term</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1">Priority</label>
+                  <select
+                    value={goalForm.priority}
+                    onChange={e => setGoalForm({ ...goalForm, priority: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-100"
+                  >
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1">Expected Completion Date</label>
+                <input
+                  type="date"
+                  value={goalForm.expectedDate}
+                  onChange={e => setGoalForm({ ...goalForm, expectedDate: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1">Progress: {goalForm.progress}%</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={goalForm.progress}
+                  onChange={e => setGoalForm({ ...goalForm, progress: e.target.value })}
+                  className="w-full accent-purple-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1">Notes</label>
+                <textarea
+                  placeholder="Goal details..."
+                  value={goalForm.notes}
+                  onChange={e => setGoalForm({ ...goalForm, notes: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-700 bg-slate-900 text-slate-100 h-20"
+                />
+              </div>
+
               <div className="flex justify-end gap-2 pt-3">
                 <button type="button" onClick={() => setIsGoalModalOpen(false)} className="px-4 py-2 text-slate-400">Cancel</button>
                 <button type="submit" className="px-5 py-2 font-bold text-white bg-purple-600 rounded-xl">Save Goal</button>
@@ -487,7 +662,6 @@ export default function App() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
